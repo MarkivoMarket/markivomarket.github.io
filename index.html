@@ -575,6 +575,20 @@ async function moderate(id,status){
   toast("Listing "+status+".");
  }catch(e){toast("Could not update listing: "+e.message)}
 }
+function selectFreePlan() {
+  toast("Free plan selected. Create your business listing.");
+  go("directory");
+  openForm();
+}
+
+function buyPlan(plan) {
+  const names = {
+    starter: "Starter",
+    professional: "Professional",
+    business_premium: "Business Premium"
+  };
+  toast(names[plan] + " selected. Secure payment integration is being prepared.");
+}
 render();
 </script>
 </body>
