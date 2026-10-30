@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Markivo | Business Growth Marketplace</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font:16px Arial,sans-serif;background:#f5f7fc;color:#17243a}
+header{background:#fff;padding:15px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-size:26px;font-weight:900}.logo span{color:#3157d5}
+nav{display:flex;gap:13px;flex-wrap:wrap}
+a{color:inherit;text-decoration:none}
+button{border:0;border-radius:9px;padding:11px 14px;font-weight:bold;cursor:pointer}
+.primary{background:#3157d5;color:#fff}
+.wrap{max-width:1100px;margin:auto;padding:20px 14px}
+.hero{padding:28px 22px;border-radius:18px;background:linear-gradient(120deg,#10213d,#3157d5);color:white}
+.hero h1{font-size:clamp(32px,6vw,54px)}
+.stats,.grid,.categories{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px;margin-top:15px}
+.stat,.card,.panel,.category{background:#fff;border:1px solid #e1e6ef;border-radius:13px;padding:15px}
+.stat b{display:block;font-size:24px}
+.muted{color:#69758b;line-height:1.5}
+.sectionhead,.cardfoot{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.filters{display:flex;gap:10px;margin:15px 0}
+input,select,textarea{font:inherit;width:100%;padding:11px;border:1px solid #d9dfeb;border-radius:9px;background:#fff}
+.filters select{width:auto}
+.tag{font-size:12px;color:#3157d5;font-weight:bold}
+.card h3{margin:9px 0;line-height:1.4;font-size:16px}
+.light{display:inline-block;padding:10px;border-radius:9px;background:#edf1ff;color:#3157d5;font-weight:bold}
+.category{text-align:center;cursor:pointer}
+section{margin-top:28px;scroll-margin-top:12px}
+footer{margin-top:28px;background:#10213d;color:white;text-align:center;padding:22px}
+.modal{display:none;position:fixed;inset:0;background:#0009;z-index:10;align-items:center;justify-content:center;padding:12px}
+.modal.show{display:flex}
+.modalbox{background:white;border-radius:16px;padding:18px;width:min(560px,100%);max-height:92vh;overflow:auto}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{margin-top:12px}
+.field label{display:block;font-weight:bold;font-size:13px;margin-bottom:5px}
+.full{grid-column:1/-1}
+.notice{background:#fff3df;padding:12px;border-radius:9px;font-size:12px;margin-top:12px}
+.empty{background:white;padding:18px;border-radius:11px;grid-column:1/-1}
+.status{font-size:12px;font-weight:bold;color:#865b00}
+.cardphoto{display:block;width:100%;height:170px;object-fit:cover;border-radius:11px;margin:8px 0}
+.danger{background:#fff0f0;color:#a11}
+.smallbtn{padding:8px 10px;font-size:13px}
+#toast{display:none;position:fixed;bottom:15px;left:6%;width:88%;background:#10213d;color:#fff;padding:13px;border-radius:10px;z-index:20;overflow-wrap:anywhere}
+
+/* Final responsive layout: laptop 3 columns, phone 2 columns */
+.card{min-width:0;overflow-wrap:anywhere;box-shadow:0 3px 12px rgba(23,36,58,.06)}
+button,.light{min-height:40px}
+@media(max-width:700px){
+ .wrap{padding:12px 10px}
+ header{padding:12px 10px}
+ nav{gap:10px}
+ .stats,.grid,.categories{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+ .card{padding:10px}
+ .cardphoto{height:125px}
+ .card h3{font-size:14px}
+ .muted{font-size:13px}
+ .category{padding:16px 8px}
+ .formgrid{grid-template-columns:1fr}
+ .full{grid-column:auto}
+ .hero{padding:22px 16px}
+ .hero h1{font-size:clamp(27px,7vw,42px)}
+ .filters{flex-direction:row}
+ .filters input{min-width:0}
+ .filters select{width:85px}
+}
+@media(max-width:380px){
+ .card{padding:8px}
+ .cardphoto{height:105px}
+ .card h3{font-size:13px}
+ nav{font-size:12px;gap:8px}
+ .filters{flex-direction:column}
+ .filters select{width:100%}
+}
+</style>
+</head>
+<body>
+<header>
+<a class="logo" href="#home">markivo<span>.</span></a>
+<nav>
+<a href="#directory">Directory</a>
+<a href="#marketplace">Marketplace</a>
+<a href="#dashboard">Dashboard</a>
+<a href="#admin">Admin</a>
+</nav>
+<button class="primary" onclick="openForm()">+ Create listing</button>
+</header>
+
+<main class="wrap">
+<section class="hero" id="home">
+<b>YOUR GROWTH STARTS HERE</b>
+<h1>One marketplace.<br>More ways to grow.</h1>
+<p>Discover businesses, products, properties and services. Connect with customers and grow from one place.</p>
+<button class="primary" onclick="go('directory')">Explore approved listings ↓</button>
+<button onclick="openForm()">Create a listing</button>
+</section>
+
+<div class="stats">
+<div class="stat"><b id="total">0</b><span class="muted">Approved listings</span></div>
+<div class="stat"><b>4</b><span class="muted">Categories</span></div>
+<div class="stat"><b>24/7</b><span class="muted">Online access</span></div>
+</div>
+
+<section id="directory">
+<div class="sectionhead">
+<div><h2>Discover listings</h2><p class="muted">Only approved listings appear in the public directory.</p></div>
+<button class="primary" onclick="openForm()">Add listing +</button>
+</div>
+<div class="filters">
+<input id="search" placeholder="Search listings or city..." oninput="render()">
+<select id="filter" onchange="render()">
+<option>All</option><option>Business</option><option>Product</option><option>Property</option><option>Service</option>
+</select> 
+ <input id="minPrice" type="number" min="0" placeholder="Min ₹" oninput="render()">
+<input id="maxPrice" type="number" min="0" placeholder="Max ₹" oninput="render()">
+</div>
+<div id="listings" class="grid"></div>
+</section>
+
+<section id="marketplace">
+<h2>Marketplace</h2>
+<div class="categories">
+<div class="category" onclick="choose('Property')">🏡<p>Property &amp; Land</p></div>
+<div class="category" onclick="choose('Product')">🛍️<p>Products</p></div>
+<div class="category" onclick="choose('Business')">🏢<p>Businesses</p></div>
+<div class="category" onclick="choose('Service')">🤝<p>Services</p></div>
+</div>
+</section>
+
+<section id="dashboard">
+<h2>My dashboard</h2>
+<p class="muted">Your own listings and approval status.</p>
+<div id="mine" class="grid"></div>
+</section>
+
+<section id="admin">
+<div class="sectionhead">
+<div><h2>Admin panel</h2><p class="muted">Sign in with the authorized Google account to moderate listings.</p></div>
+<button class="primary" id="loginBtn" onclick="adminLogin()">Admin sign in with Google</button>
+</div>
+<div id="adminInfo" class="panel" style="display:none"></div>
+<div id="pending" class="grid"></div>
+</section>
+</main>
+
+<footer><div class="logo">markivo<span style="color:white">.</span></div><p>Business Growth Marketplace</p></footer>
+
+<div class="modal" id="modal">
+<div class="modalbox">
+<div class="sectionhead"><h2 id="formTitle">Create a listing</h2><button onclick="closeForm()">✕</button></div>
+<form id="form">
+<input type="hidden" name="listingId">
+<div class="field"><label>Listing title *</label><input name="title" required></div>
+<div class="formgrid">
+<div class="field"><label>Category</label><select name="category" onchange="renderCategoryFields()"><option>Business</option><option>Product</option><option>Property</option><option>Service</option></select></div>
+<div class="field"><label>City</label><input name="city" placeholder="Guwahati"></div>
+<div class="field"><label>Price ₹</label><input name="price" type="number" min="0"></div>
+<div class="field"><label>WhatsApp number</label><input name="phone" inputmode="tel" placeholder="Country code + number"></div>
+<div class="field full"><label>Description</label><textarea name="description"></textarea></div>
+<div class="field full"><label>Photo (JPG, PNG or WebP; compressed before saving)</label><input name="photo" type="file" accept="image/jpeg,image/png,image/webp"></div>
+<div class="field full" id="categoryFields"></div>
+<div class="notice">New listings and edited listings are Pending until an admin approves them. Small photos only.</div>
+<p><button class="primary" type="submit">Submit for approval</button> <button type="button" onclick="closeForm()">Cancel</button></p>
+</form>
+</div>
+</div>
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+const firebaseConfig={
+ apiKey:"AIzaSyAIyVbdynG05Em5cCIreSNn-PNt2eKT-6w",
+ authDomain:"markivo-57dc4.firebaseapp.com",
+ projectId:"markivo-57dc4",
+ storageBucket:"markivo-57dc4.firebasestorage.app",
+ messagingSenderId:"586212770634",
+ appId:"1:586212770634:web:ac9b465a60ac10bf7bf7b3",
+ measurementId:"G-MLFSYTV4FN"
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(),db=firebase.firestore();
+let user=null,approved=[],ownListings=[],pending=[],isAdmin=false;
+const OWNER_UID="0aObFxA2zkgyUHn8HQyEpYDrkVf2";
+
+function safe(v){
+ return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function card(x,showStatus=false,showActions=false){
+ const digits=String(x.phone||"").replace(/\D/g,"");
+ const wa=digits.length>=10&&digits.length<=15
+ ?'<a class="light" target="_blank" rel="noopener" href="https://wa.me/'+digits+'?text='+encodeURIComponent("Hello, I am interested in "+String(x.title||"your listing"))+'">WhatsApp enquiry</a>'
+ :'<span class="muted">WhatsApp number not provided</span>';
+ return '<article class="card">'+
+ (x.photoURL?'<img class="cardphoto" loading="lazy" src="'+safe(x.photoURL)+'" alt="Listing photo">':'')+
+ '<span class="tag">'+safe(x.category)+'</span><h3>'+safe(x.title)+'</h3>'+
+ '<div class="muted">📍 '+safe(x.city||"Online")+'</div>'+
+ '<p class="muted">'+safe(x.description||"Contact for details.")+'</p>'+
+ '<div class="cardfoot"><b>'+(x.price?"₹"+Number(x.price).toLocaleString("en-IN"):"Contact for price")+'</b>'+wa+'</div>'+
+ (showStatus?'<p class="status">Status: '+safe(x.status||"pending")+'</p>':'')+
+ (showActions?'<div class="cardfoot"><button class="primary smallbtn" data-edit-id="'+safe(x.id)+'">Edit</button><button class="danger smallbtn" data-delete-id="'+safe(x.id)+'">Delete</button></div>':'')+
+ '</article>';
+}
+function render(){
+ const q=(document.getElementById("search").value||"").toLowerCase();
+ const cat=document.getElementById("filter").value; 
+ const minText=document.getElementById("minPrice").value;
+const maxText=document.getElementById("maxPrice").value;
+const minPrice=minText===""?0:Number(minText);
+const maxPrice=maxText===""?Infinity:Number(maxText);
+ const rows=approved.filter(x=>
+  (cat==="All"||x.category===cat)&&
+  [x.title,x.category,x.city,x.description].join(" ").toLowerCase().includes(q)&&
+  (minText===""||Number(x.price)>=minPrice)&&
+  (maxText===""||Number(x.price)<=maxPrice)
+);
+ document.getElementById("listings").innerHTML=rows.length?rows.map(x=>card(x)).join(""):'<div class="empty">No approved listings found. Try another search.</div>';
+ document.getElementById("mine").innerHTML=ownListings.length?ownListings.map(x=>card(x,true,true)).join(""):'<div class="empty">You have no listings yet.</div>';
+ document.getElementById("total").textContent=approved.length;
+ document.getElementById("pending").innerHTML=isAdmin?(pending.length?pending.map(x=>'<article class="card"><span class="status">PENDING REVIEW</span><h3>'+safe(x.title)+'</h3><p>'+safe(x.category)+' · '+safe(x.city)+'</p><p class="muted">'+safe(x.description)+'</p>'+(x.photoURL?'<img class="cardphoto" src="'+safe(x.photoURL)+'" alt="Listing photo">':'')+'<button class="primary" data-id="'+safe(x.id)+'" data-status="approved">Approve</button> <button data-id="'+safe(x.id)+'" data-status="rejected">Reject</button></article>').join(""):'<div class="empty">No pending listings.</div>'):"";
+}
+document.getElementById("pending").addEventListener("click",e=>{
+ const b=e.target.closest("button[data-id]");
+ if(b)moderate(b.dataset.id,b.dataset.status);
+});
+document.getElementById("mine").addEventListener("click",e=>{
+ const a=e.target.closest("button[data-edit-id]");
+ const b=e.target.closest("button[data-delete-id]");
+ if(a)editListing(a.dataset.editId);
+ if(b)deleteListing(b.dataset.deleteId);
+});
+function renderCategoryFields(saved = {}) {
+  const category = document.querySelector(
+    '#form select[name="category"]'
+  ).value;
+
+  const fields = {
+    Property: `
+      <div class="field">
+        <label>Property type</label>
+        <select name="detail_propertyType" data-detail>
+          <option value="Land">Land / Plot</option>
+          <option value="House">House</option>
+          <option value="Apartment">Apartment / Flat</option>
+          <option value="Commercial">Commercial</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Area / size</label>
+        <input name="detail_area" data-detail placeholder="e.g. 2 bigha / 1200 sq ft">
+      </div>
+      <div class="field">
+        <label>Bedrooms</label>
+        <input name="detail_bedrooms" data-detail type="number" min="0">
+      </div>`,
+    Product: `
+      <div class="field">
+        <label>Brand</label>
+        <input name="detail_brand" data-detail placeholder="Brand name">
+      </div>
+      <div class="field">
+        <label>Condition</label>
+        <select name="detail_condition" data-detail>
+          <option value="New">New</option>
+          <option value="Used">Used</option>
+          <option value="Refurbished">Refurbished</option>
+        </select>
+      </div>`,
+    Business: `
+      <div class="field">
+        <label>Business type</label>
+        <input name="detail_businessType" data-detail placeholder="Retail, wholesale, etc.">
+      </div>
+      <div class="field">
+        <label>Established year</label>
+        <input name="detail_establishedYear" data-detail type="number" min="1900" max="2100">
+      </div>`,
+    Service: `
+      <div class="field">
+        <label>Service type</label>
+        <input name="detail_serviceType" data-detail placeholder="Describe the service">
+      </div>
+      <div class="field">
+        <label>Service charges ₹</label>
+        <input name="detail_charges" data-detail type="number" min="0">
+      </div>`
+  };
+
+  const box = document.getElementById("categoryFields");
+  box.innerHTML = fields[category] || "";
+
+  box.querySelectorAll("[data-detail]").forEach(el => {
+    const key = el.name.replace("detail_", "");
+    if (saved[key] != null) el.value = saved[key];
+  });
+}
+
+function collectCategoryDetails(form) {
+  const details = {};
+  form.querySelectorAll("[data-detail]").forEach(el => {
+    details[el.name.replace("detail_", "")] = el.value.trim();
+  });
+  return details;
+}
+ 
+function openForm(){
+ document.getElementById("form").reset();
+ renderCategoryFields();
+ document.querySelector('[name="listingId"]').value="";
+ document.getElementById("formTitle").textContent="Create a listing";
+ document.getElementById("modal").classList.add("show");
+}
+function closeForm(){document.getElementById("modal").classList.remove("show")}
+function editListing(id){
+ const x=ownListings.find(v=>v.id===id);
+ if(!x){toast("Listing not found.");return}
+ const f=document.getElementById("form");
+ f.elements.listingId.value=x.id;
+ f.elements.title.value=x.title||"";
+ f.elements.category.value=x.category||"Business";
+ renderCategoryFields(x.details || {});
+ f.elements.city.value=x.city||"";
+ f.elements.price.value=x.price||"";
+ f.elements.phone.value=x.phone||"";
+ f.elements.description.value=x.description||"";
+ f.elements.photo.value="";
+ document.getElementById("formTitle").textContent="Edit listing";
+ document.getElementById("modal").classList.add("show");
+}
+async function deleteListing(id){
+ const x=ownListings.find(v=>v.id===id);
+ if(!x||!user||x.ownerId!==user.uid){toast("You can only delete your own listing.");return}
+ if(!confirm("Delete this listing permanently?"))return;
+ try{await db.collection("listings").doc(id).delete();toast("Listing deleted.")}
+ catch(e){toast("Could not delete listing: "+e.message)}
+}
+function go(id){document.getElementById(id).scrollIntoView({behavior:"smooth"})}
+function choose(c){document.getElementById("filter").value=c;render();go("directory")}
+function toast(msg){
+ const t=document.getElementById("toast");
+ t.textContent=msg;t.style.display="block";
+ setTimeout(()=>t.style.display="none",5000);
+}
+function watchUserData(){
+ if(!user)return;
+ db.collection("listings").where("status","==","approved").onSnapshot(s=>{
+  approved=s.docs.map(d=>({id:d.id,...d.data()}));render();
+ },e=>{console.error(e);toast("Public listings read failed: "+e.message)});
+ db.collection("listings").where("ownerId","==",user.uid).onSnapshot(s=>{
+  ownListings=s.docs.map(d=>({id:d.id,...d.data()}));render();
+ },e=>console.warn("Dashboard query failed:",e.message));
+}
+auth.onAuthStateChanged(u=>{
+ user=u;
+ if(u)watchUserData();
+ else auth.signInAnonymously().catch(e=>toast("Sign-in failed: "+e.message));
+});
+async function compressImage(file){
+ return new Promise((resolve,reject)=>{
+  const reader=new FileReader();
+  reader.onerror=()=>reject(Error("Photo could not be read."));
+  reader.onload=()=>{
+   const img=new Image();
+   img.onerror=()=>reject(Error("Invalid photo file."));
+   img.onload=()=>{
+    const scale=Math.min(1,800/Math.max(img.width,img.height));
+    const canvas=document.createElement("canvas");
+    canvas.width=Math.max(1,Math.round(img.width*scale));
+    canvas.height=Math.max(1,Math.round(img.height*scale));
+    canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+    let quality=.65,data=canvas.toDataURL("image/jpeg",quality);
+    while(data.length>500000&&quality>.3){
+     quality-=.08;data=canvas.toDataURL("image/jpeg",quality);
+    }
+    if(data.length>500000)reject(Error("Photo is too large. Please choose a smaller photo."));
+    else resolve(data);
+   };
+   img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+ });
+}
+document.getElementById("form").addEventListener("submit",async e=>{
+ e.preventDefault();
+ const form=e.target,f=new FormData(form);
+ const title=String(f.get("title")||"").trim();
+ const listingId=String(f.get("listingId")||"").trim();
+ const file=form.elements.photo.files[0];
+ if(!title){toast("Please enter a listing title.");return}
+ if(file&&(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>5*1024*1024)){
+  toast("Choose a JPG, PNG or WebP photo up to 5 MB.");return;
+ }
+ try{
+  if(!user)throw Error("Please wait for sign-in and try again.");
+  const existing=listingId?ownListings.find(x=>x.id===listingId):null;
+  if(listingId&&(!existing||existing.ownerId!==user.uid))throw Error("You can only edit your own listing.");
+  let photoURL=existing?.photoURL||"";
+  if(file)photoURL=await compressImage(file);
+  const data={
+   title,
+   category:String(f.get("category")||"Business"),
+   city:String(f.get("city")||"").trim()||"Online",
+   price:String(f.get("price")||""),
+   phone:String(f.get("phone")||"").trim(),
+   description:String(f.get("description")||"").trim(),
+   details:collectCategoryDetails(form),
+   photoURL,photoPath:""
+  };
+  if(listingId){
+   await db.collection("listings").doc(listingId).update({...data,status:"pending",updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  }else{
+   await db.collection("listings").add({...data,ownerId:user.uid,status:"pending",createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+  }
+  form.reset();closeForm();
+  toast(listingId?"Listing updated and sent for review.":"Listing submitted for admin approval.");
+ }catch(err){toast("Could not save listing: "+err.message)}
+});
+async function adminLogin(){
+ try{
+  const result=await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
+  user=result.user;
+  document.getElementById("loginBtn").textContent="Google account signed in";
+  await checkAdmin();
+ }catch(e){toast("Google sign-in failed: "+e.message)}
+}
+async function checkAdmin(){
+ const current=auth.currentUser;
+ if(!current){toast("Please sign in with Google again.");return}
+ user=current;
+ isAdmin=current.uid===OWNER_UID;
+ if(!isAdmin){
+  try{
+   const d=await db.collection("admins").doc(current.uid).get({source:"server"});
+   isAdmin=d.exists&&d.data().enabled===true;
+  }catch(e){
+   const info=document.getElementById("adminInfo");
+   info.style.display="block";info.textContent="Admin verification failed: "+e.message;return;
+  }
+ }
+ const info=document.getElementById("adminInfo");
+ info.style.display="block";
+ if(!isAdmin){
+  info.textContent="This Google account is not authorized. Signed-in UID: "+current.uid;
+  toast("Admin account not authorized.");return;
+ }
+ info.innerHTML="<b>Admin access verified.</b><p>Review pending listings below.</p>";
+ db.collection("listings").where("status","==","pending").onSnapshot(s=>{
+  pending=s.docs.map(d=>({id:d.id,...d.data()}));render();
+ },e=>{
+  info.textContent="Pending listings read failed: "+e.message;
+  toast("Pending listings read failed: "+e.message);
+ });
+}
+async function moderate(id,status){
+ if(!isAdmin){toast("Admin access required.");return}
+ if(!["approved","rejected"].includes(status)){toast("Invalid moderation status.");return}
+ try{
+  await db.collection("listings").doc(id).update({
+   status,moderatedAt:firebase.firestore.FieldValue.serverTimestamp(),moderatedBy:user.uid
+  });
+  toast("Listing "+status+".");
+ }catch(e){toast("Could not update listing: "+e.message)}
+}
+render();
+</script>
+</body>
+</html>
