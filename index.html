@@ -581,14 +581,20 @@ function selectFreePlan() {
   openForm();
 }
 
-function buyPlan(plan) {
+window.buyPlan = function(plan) {
   const names = {
     starter: "Starter",
     professional: "Professional",
     business_premium: "Business Premium"
   };
-  toast(names[plan] + " selected. Secure payment integration is being prepared.");
-}
+
+  if (!names[plan]) {
+    toast("Invalid plan");
+    return;
+  }
+
+  toast(names[plan] + " selected successfully!");
+};
 render();
 </script>
 </body>
