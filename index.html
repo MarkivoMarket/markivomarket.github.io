@@ -581,20 +581,101 @@ function selectFreePlan() {
   openForm();
 }
 
-window.buyPlan = function(plan) {
+
+window.buyPlan = async function(plan) {
+  const api = "https://markivo-payment-api.luit-dilip9678.workers.dev";
+
+  const prices = {
+    starter: 29900,
+    professional: 99900,
+    business_premium: 249900
+  };
+
   const names = {
     starter: "Starter",
     professional: "Professional",
     business_premium: "Business Premium"
   };
 
-  if (!names[plan]) {
+  if (!prices[plan]) {
     toast("Invalid plan");
     return;
   }
 
-  toast(names[plan] + " selected successfully!");
+  try {
+    if (!window.Razorpay) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://checkout.razorpay.com/v1/checkout.js";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+
+    toast("Creating secure test order...");
+
+    const orderResponse = await fetch(api + "/create-order", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({plan})
+    });
+
+    const order = await orderResponse.json();
+
+    if (!orderResponse.ok) {
+      throw new Error(order.error || "Order creation failed");
+    }
+
+    const checkout = new Razorpay({
+      key: order.key_id,
+      amount: order.amount,
+      currency: order.currency,
+      name: "Markivo",
+      description: names[plan] + " Annual Plan",
+      order_id: order.order_id,
+
+      handler: async function(payment) {
+        try {
+          const verifyResponse = await fetch(api + "/verify-payment", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+              razorpay_order_id: payment.razorpay_order_id,
+              razorpay_payment_id: payment.razorpay_payment_id,
+              razorpay_signature: payment.razorpay_signature,
+              plan: plan
+            })
+          });
+
+          const result = await verifyResponse.json();
+
+          if (!verifyResponse.ok || !result.verified) {
+            throw new Error(result.error || "Verification failed");
+          }
+
+          toast("Test payment verified successfully!");
+        } catch (error) {
+          toast("Payment verification failed: " + error.message);
+        }
+      },
+
+      modal: {
+        ondismiss: function() {
+          toast("Payment window closed");
+        }
+      },
+
+      theme: {color: "#3157d5"}
+    });
+
+    checkout.open();
+
+  } catch (error) {
+    toast("Payment error: " + error.message);
+  }
 };
+
 render();
 </script>
 </body>
