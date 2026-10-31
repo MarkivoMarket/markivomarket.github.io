@@ -645,7 +645,8 @@ window.buyPlan = async function(plan) {
               razorpay_payment_id: payment.razorpay_payment_id,
               razorpay_signature: payment.razorpay_signature,
 plan: plan,
-user_uid: user.uid
+user_uid: user.uid,
+id_token: await user.getIdToken()
             })
           });
 
