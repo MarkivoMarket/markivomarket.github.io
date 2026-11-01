@@ -177,7 +177,14 @@ button,.light{min-height:40px}
 <section id="dashboard">
 <h2>My dashboard</h2>
 <p class="muted">Your own listings and approval status.</p>
-<div id="mySubscription" class="panel">Loading membership...</div>
+<div id="mySubscription" class="panel">Loading membership...</div> 
+ <div id="premiumAnalytics" class="panel" style="display:none">
+  <h3>Business Analytics</h3>
+  <p>Total Listings: <b id="analyticsTotal">0</b></p>
+  <p>Approved: <b id="analyticsApproved">0</b></p>
+  <p>Pending: <b id="analyticsPending">0</b></p>
+  <p>Rejected: <b id="analyticsRejected">0</b></p>
+</div>
 <div id="mine" class="grid"></div>
 </section>
 
@@ -356,6 +363,22 @@ const maxPrice=maxText===""?Infinity:Number(maxText);
  document.getElementById("listings").innerHTML=rows.length?rows.map(x=>card(x)).join(""):'<div class="empty">No approved listings found. Try another search.</div>';
  document.getElementById("mine").innerHTML=ownListings.length?ownListings.map(x=>card(x,true,true)).join(""):'<div class="empty">You have no listings yet.</div>';
  document.getElementById("total").textContent=approved.length;
+ const analytics = document.getElementById("premiumAnalytics");
+
+if (analytics) {
+  analytics.style.display =
+    hasPlan("business_premium") ? "block" : "none";
+
+  if (hasPlan("business_premium")) {
+    document.getElementById("analyticsTotal").textContent = ownListings.length;
+    document.getElementById("analyticsApproved").textContent =
+      ownListings.filter(x => x.status === "approved").length;
+    document.getElementById("analyticsPending").textContent =
+      ownListings.filter(x => x.status === "pending").length;
+    document.getElementById("analyticsRejected").textContent =
+      ownListings.filter(x => x.status === "rejected").length;
+  }
+}
  document.getElementById("pending").innerHTML=isAdmin?(pending.length?pending.map(x=>'<article class="card"><span class="status">PENDING REVIEW</span><h3>'+safe(x.title)+'</h3><p>'+safe(x.category)+' · '+safe(x.city)+'</p><p class="muted">'+safe(x.description)+'</p>'+(x.photoURL?'<img class="cardphoto" src="'+safe(x.photoURL)+'" alt="Listing photo">':'')+'<button class="primary" data-id="'+safe(x.id)+'" data-status="approved">Approve</button> <button data-id="'+safe(x.id)+'" data-status="rejected">Reject</button></article>').join(""):'<div class="empty">No pending listings.</div>'):"";
 }
 document.getElementById("pending").addEventListener("click",e=>{
