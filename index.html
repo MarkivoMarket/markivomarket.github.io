@@ -295,6 +295,31 @@ const firebaseConfig={
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
 let user=null,approved=[],ownListings=[],pending=[],isAdmin=false;
+ let currentPlan = "free";
+let subscriptionActive = false;
+
+const PLAN_LEVEL = {
+  free: 0,
+  starter: 1,
+  professional: 2,
+  business_premium: 3
+};
+
+function hasPlan(requiredPlan) {
+  return subscriptionActive &&
+    (PLAN_LEVEL[currentPlan] || 0) >=
+    (PLAN_LEVEL[requiredPlan] || 99);
+}
+
+function requirePlan(requiredPlan) {
+  if (!hasPlan(requiredPlan)) {
+    toast("Please upgrade to the " +
+      requiredPlan.replaceAll("_", " ") + " plan.");
+    go("pricing");
+    return false;
+  }
+  return true;
+}
 const OWNER_UID="0aObFxA2zkgyUHn8HQyEpYDrkVf2";
 
 function safe(v){
@@ -475,13 +500,18 @@ function toast(msg){
     const data = await res.json();
 
     if (!res.ok) throw new Error(data.error);
-
+currentPlan = "free";
+subscriptionActive = false;
     if (!data.found || !data.subscription) {
       box.innerHTML = "<h3>Free Basic Listing</h3><p>No paid subscription.</p>";
       return;
     }
 
-    const s = data.subscription;
+    const s = data.subscription; subscriptionActive =
+  s.status === "active" &&
+  new Date(s.expires_at).getTime() > Date.now();
+
+currentPlan = subscriptionActive ? s.plan : "free";
     const expiry = new Date(s.expires_at);
 
     box.innerHTML = `
@@ -572,13 +602,35 @@ document.getElementById("form").addEventListener("submit",async e=>{
   toast(listingId?"Listing updated and sent for review.":"Listing submitted for admin approval.");
  }catch(err){toast("Could not save listing: "+err.message)}
 });
-async function adminLogin(){
- try{
-  const result=await auth.signInWithPopup(new firebase.auth.GoogleAuthProvider());
-  user=result.user;
-  document.getElementById("loginBtn").textContent="Google account signed in";
-  await checkAdmin();
- }catch(e){toast("Google sign-in failed: "+e.message)}
+async function adminLogin() {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const current = auth.currentUser;
+
+    let result;
+
+    if (current && current.isAnonymous) {
+      result = await current.linkWithPopup(provider);
+    } else {
+      result = await auth.signInWithPopup(provider);
+    }
+
+    user = result.user;
+    document.getElementById("loginBtn").textContent =
+      "Google account signed in";
+
+    await checkAdmin();
+    await loadMySubscription();
+
+    toast("Google account connected successfully.");
+
+  } catch (e) {
+    if (e.code === "auth/credential-already-in-use") {
+      toast("This Google account is already linked to another account.");
+    } else {
+      toast("Google sign-in failed: " + e.message);
+    }
+  }
 }
 async function checkAdmin(){
  const current=auth.currentUser;
