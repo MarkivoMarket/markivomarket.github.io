@@ -613,7 +613,7 @@ window.buyPlan = async function(plan) {
       });
     }
 
-    toast("Creating secure test order...");
+    toast("Creating secure payment order...");
 
     const orderResponse = await fetch(api + "/create-order", {
       method: "POST",
@@ -660,8 +660,14 @@ id_token: await user.getIdToken()
             throw new Error(result.error || "Verification failed");
           }
 
-          toast("Test payment verified successfully!");
-        } catch (error) {
+          toast("Payment successful! Your Markivo subscription is active.");
+       if (result.subscription?.status === "active") {
+  const expiry = new Date(
+    result.subscription.expires_at
+  ).toLocaleDateString("en-IN");
+
+  toast("Plan Active: " + names[plan] + " | Valid till: " + expiry);
+       } } catch (error) {
           toast("Payment verification failed: " + error.message);
         }
       },
