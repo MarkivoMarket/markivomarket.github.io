@@ -326,6 +326,41 @@ function requirePlan(requiredPlan) {
     return false;
   }
   return true;
+} 
+ const MARKIVO_API =
+  "https://markivo-payment-api.luit-dilip9678.workers.dev";
+
+async function checkMarkivoFeature(feature) {
+  if (!user) {
+    toast("Please sign in first.");
+    return false;
+  }
+
+  try {
+    const res = await fetch(MARKIVO_API + "/entitlements", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id_token: await user.getIdToken(),
+        user_uid: user.uid
+      })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || "Permission check failed");
+
+    if (!data.features?.[feature]) {
+      toast("Upgrade your Markivo plan to use this feature.");
+      go("pricing");
+      return false;
+    }
+
+    return true;
+  } catch (e) {
+    toast("Feature verification failed. Please try again.");
+    return false;
+  }
 }
 const OWNER_UID="0aObFxA2zkgyUHn8HQyEpYDrkVf2";
 
@@ -778,14 +813,18 @@ id_token: await user.getIdToken()
             throw new Error(result.error || "Verification failed");
           }
 
-          toast("Payment successful! Your Markivo subscription is active.");
-       if (result.subscription?.status === "active") {
+          await loadMySubscription();
+render();
+
+if (result.subscription?.status === "active") {
   const expiry = new Date(
     result.subscription.expires_at
   ).toLocaleDateString("en-IN");
 
   toast("Plan Active: " + names[plan] + " | Valid till: " + expiry);
-       } } catch (error) {
+} else {
+  toast("Payment verified. Refreshing membership...");
+}
           toast("Payment verification failed: " + error.message);
         }
       },
