@@ -177,6 +177,7 @@ button,.light{min-height:40px}
 <section id="dashboard">
 <h2>My dashboard</h2>
 <p class="muted">Your own listings and approval status.</p>
+<div id="mySubscription" class="panel">Loading membership...</div>
 <div id="mine" class="grid"></div>
 </section>
 
@@ -454,6 +455,45 @@ function toast(msg){
  const t=document.getElementById("toast");
  t.textContent=msg;t.style.display="block";
  setTimeout(()=>t.style.display="none",5000);
+} async function loadMySubscription() {
+  const box = document.getElementById("mySubscription");
+  if (!user) return;
+
+  try {
+    const res = await fetch(
+      "https://markivo-payment-api.luit-dilip9678.workers.dev/my-subscription",
+      {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          user_uid: user.uid,
+          id_token: await user.getIdToken()
+        })
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error);
+
+    if (!data.found || !data.subscription) {
+      box.innerHTML = "<h3>Free Basic Listing</h3><p>No paid subscription.</p>";
+      return;
+    }
+
+    const s = data.subscription;
+    const expiry = new Date(s.expires_at);
+
+    box.innerHTML = `
+      <h3>My Membership</h3>
+      <p>Plan: <b>${safe(s.plan.replaceAll("_", " "))}</b></p>
+      <p>Status: <b>${safe(s.status.toUpperCase())}</b></p>
+      <p>Valid Until: <b>${expiry.toLocaleDateString("en-IN")}</b></p>
+    `;
+  } catch (e) {
+    box.textContent = "Membership could not be loaded. Refresh the page.";
+    console.error(e);
+  }
 }
 function watchUserData(){
  if(!user)return;
@@ -466,7 +506,10 @@ function watchUserData(){
 }
 auth.onAuthStateChanged(u=>{
  user=u;
- if(u)watchUserData();
+ if(u) {
+  watchUserData();
+  loadMySubscription();
+ }
  else auth.signInAnonymously().catch(e=>toast("Sign-in failed: "+e.message));
 });
 async function compressImage(file){
