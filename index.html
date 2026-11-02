@@ -825,6 +825,8 @@ if (result.subscription?.status === "active") {
 } else {
   toast("Payment verified. Refreshing membership...");
 }
+                  } catch (error) {
+          console.error("Payment verification error:", error);
           toast("Payment verification failed: " + error.message);
         }
       },
