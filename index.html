@@ -846,6 +846,288 @@ if (result.subscription?.status === "active") {
 };
 
 render();
+</script> 
+ <!-- MARKIVO: COMPLETE FRONTEND SECURITY & LAUNCH PATCH -->
+<style>
+#markivo-security-panel {
+  background:#fff;border:1px solid #dce3ef;border-radius:14px;
+  padding:18px;margin:18px 0;box-shadow:0 4px 16px #10213d0c
+}
+#markivo-security-panel input {
+  display:block;width:100%;padding:12px;margin:8px 0;
+  border:1px solid #dce3ef;border-radius:8px;box-sizing:border-box
+}
+#markivo-security-panel button {
+  margin:5px 4px 5px 0;padding:11px 14px;border:0;
+  border-radius:8px;background:#3157d5;color:white;font-weight:bold
+}
+#markivo-security-panel .secondary {background:#edf1ff;color:#3157d5}
+#markivo-security-status {font-size:13px;color:#526078;overflow-wrap:anywhere}
+</style>
+
+<script>
+(function () {
+"use strict";
+
+const MARKIVO_SECURITY = {
+  api: "https://markivo-payment-api.luit-dilip9678.workers.dev",
+  plans: ["free","starter","professional","business_premium"]
+};
+
+function mkMessage(message) {
+  if (typeof window.toast === "function") window.toast(message);
+  else alert(message);
+}
+
+function mkUser() {
+  return window.firebase && firebase.auth().currentUser;
+}
+
+async function mkToken() {
+  const user = mkUser();
+  if (!user) throw new Error("Please sign in first.");
+  return user.getIdToken(true);
+}
+
+/* 1. ACCOUNT SECURITY */
+function installAccountPanel() {
+  if (document.getElementById("markivo-security-panel")) return;
+
+  const dashboard = document.getElementById("dashboard");
+  if (!dashboard) return;
+
+  const panel = document.createElement("div");
+  panel.id = "markivo-security-panel";
+  panel.innerHTML = `
+    <h3>Markivo Account Security</h3>
+    <p id="markivo-security-status">Checking account...</p>
+    <input id="mk-email" type="email" placeholder="Email address"
+      autocomplete="email">
+    <input id="mk-password" type="password"
+      placeholder="Password (minimum 8 characters)"
+      autocomplete="current-password">
+    <button type="button" id="mk-google">Continue with Google</button>
+    <button type="button" id="mk-login" class="secondary">Email Login</button>
+    <button type="button" id="mk-register" class="secondary">Create Account</button>
+    <button type="button" id="mk-reset" class="secondary">Reset Password</button>
+    <button type="button" id="mk-logout" class="secondary">Sign Out</button>
+  `;
+
+  dashboard.insertBefore(panel, dashboard.children[2] || null);
+
+  const email = () => document.getElementById("mk-email").value.trim();
+  const password = () => document.getElementById("mk-password").value;
+
+  document.getElementById("mk-google").onclick = async () => {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      const current = mkUser();
+
+      if (current && current.isAnonymous) {
+        try {
+          await current.linkWithPopup(provider);
+        } catch (e) {
+          if (e.code !== "auth/credential-already-in-use") throw e;
+          await firebase.auth().signInWithPopup(provider);
+        }
+      } else {
+        await firebase.auth().signInWithPopup(provider);
+      }
+      mkMessage("Google account connected.");
+    } catch (e) {
+      mkMessage("Google login failed: " + e.message);
+    }
+  };
+
+  document.getElementById("mk-login").onclick = async () => {
+    try {
+      if (!email() || !password()) throw new Error("Enter email and password.");
+      const current = mkUser();
+
+      if (current && current.isAnonymous) {
+        const credential = firebase.auth.EmailAuthProvider
+          .credential(email(), password());
+        await current.linkWithCredential(credential);
+      } else {
+        await firebase.auth().signInWithEmailAndPassword(email(), password());
+      }
+      mkMessage("Email login successful.");
+    } catch (e) {
+      mkMessage("Login failed: " + e.message);
+    }
+  };
+
+  document.getElementById("mk-register").onclick = async () => {
+    try {
+      if (!email() || password().length < 8)
+        throw new Error("Enter email and password of at least 8 characters.");
+
+      const current = mkUser();
+      if (current && current.isAnonymous) {
+        const credential = firebase.auth.EmailAuthProvider
+          .credential(email(), password());
+        await current.linkWithCredential(credential);
+      } else {
+        await firebase.auth().createUserWithEmailAndPassword(email(), password());
+      }
+      mkMessage("Account created successfully.");
+    } catch (e) {
+      mkMessage("Registration failed: " + e.message);
+    }
+  };
+
+  document.getElementById("mk-reset").onclick = async () => {
+    try {
+      if (!email()) throw new Error("Enter your email address.");
+      await firebase.auth().sendPasswordResetEmail(email());
+      mkMessage("Password reset email sent.");
+    } catch (e) {
+      mkMessage("Password reset failed: " + e.message);
+    }
+  };
+
+  document.getElementById("mk-logout").onclick = async () => {
+    try {
+      await firebase.auth().signOut();
+      mkMessage("Signed out.");
+    } catch (e) {
+      mkMessage("Sign out failed: " + e.message);
+    }
+  };
+}
+
+/* 2. SUBSCRIPTION & PLAN ENTITLEMENTS */
+async function markivoGetEntitlements() {
+  const user = mkUser();
+  if (!user || user.isAnonymous)
+    throw new Error("Please sign in with a permanent account.");
+
+  const response = await fetch(MARKIVO_SECURITY.api + "/entitlements", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      id_token: await mkToken(),
+      user_uid: user.uid
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Entitlement check failed.");
+
+  return data;
+}
+
+window.markivoRequireFeature = async function(feature) {
+  try {
+    const data = await markivoGetEntitlements();
+    if (!data.features || data.features[feature] !== true) {
+      mkMessage("This feature is not included in your current plan.");
+      if (typeof window.go === "function") window.go("pricing");
+      return false;
+    }
+    return true;
+  } catch (e) {
+    mkMessage("Access verification failed: " + e.message);
+    return false;
+  }
+};
+
+/* 3. FIRESTORE / ADMIN CLIENT-SIDE SAFETY */
+window.markivoVerifyCurrentAccount = async function() {
+  const user = mkUser();
+  if (!user) throw new Error("Not signed in.");
+
+  const token = await mkToken();
+  const result = await fetch(
+    "https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=" +
+      encodeURIComponent(firebase.app().options.apiKey),
+    {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({idToken:token})
+    }
+  );
+
+  const data = await result.json();
+  if (!result.ok || !data.users || !data.users.length)
+    throw new Error("Firebase account verification failed.");
+
+  return data.users[0];
+};
+
+/* 4. PAYMENT REQUEST SAFETY */
+window.markivoSecurePaymentRequest = async function(path, payload) {
+  const user = mkUser();
+  if (!user || user.isAnonymous)
+    throw new Error("Sign in before making a payment.");
+
+  const response = await fetch(MARKIVO_SECURITY.api + path, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      ...payload,
+      user_uid:user.uid,
+      id_token:await mkToken()
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Payment request failed.");
+  return data;
+};
+
+/* 5. FINAL LAUNCH STATUS */
+window.markivoLaunchCheck = async function() {
+  const checks = {
+    firebase: !!(window.firebase && firebase.apps.length),
+    auth: !!mkUser(),
+    worker: false,
+    entitlements: false
+  };
+
+  try {
+    const response = await fetch(MARKIVO_SECURITY.api + "/", {
+      method:"GET"
+    });
+    checks.worker = response.ok;
+  } catch (_) {}
+
+  try {
+    await markivoGetEntitlements();
+    checks.entitlements = true;
+  } catch (_) {}
+
+  console.table(checks);
+  return checks;
+};
+
+/* Update account status */
+function updateAccountStatus(user) {
+  const status = document.getElementById("markivo-security-status");
+  if (!status) return;
+
+  if (!user) status.textContent = "Not signed in.";
+  else if (user.isAnonymous)
+    status.textContent = "Guest account. Connect Google or email to secure it.";
+  else
+    status.textContent = "Signed in: " + (user.email || "Google account");
+}
+
+function start() {
+  if (!window.firebase || !firebase.apps.length) return;
+  installAccountPanel();
+  updateAccountStatus(mkUser());
+  firebase.auth().onAuthStateChanged(updateAccountStatus);
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", start);
+} else {
+  start();
+}
+
+})();
 </script>
-</body>
+<!-- END MARKIVO PATCH -->
+</body> 
 </html>
