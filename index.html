@@ -350,7 +350,7 @@ async function checkMarkivoFeature(feature) {
 
     if (!res.ok) throw new Error(data.error || "Permission check failed");
 
-    if (!data.features?.[feature]) {
+    if (!Array.isArray(data.features) || !data.features.includes(feature)) {
       toast("Upgrade your Markivo plan to use this feature.");
       go("pricing");
       return false;
@@ -1022,7 +1022,7 @@ async function markivoGetEntitlements() {
 window.markivoRequireFeature = async function(feature) {
   try {
     const data = await markivoGetEntitlements();
-    if (!data.features || data.features[feature] !== true) {
+    if (!Array.isArray(data.features) || !data.features.includes(feature)) {
       mkMessage("This feature is not included in your current plan.");
       if (typeof window.go === "function") window.go("pricing");
       return false;
