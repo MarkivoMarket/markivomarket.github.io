@@ -649,6 +649,8 @@ document.getElementById("form").addEventListener("submit",async e=>{
    phone:String(f.get("phone")||"").trim(),
    description:String(f.get("description")||"").trim(),
    details:collectCategoryDetails(form),
+   website: String(f.get("website") || "").trim(),
+socialLink: String(f.get("socialLink") || "").trim(),
    photoURL,photoPath:""
   };
   if(listingId){
@@ -1254,14 +1256,27 @@ function listingCount() {
   return Array.isArray(window.ownListings) ? window.ownListings.length : 0;
 }
 
+let mkAllowSubmit = false;
+
+function listingCount() {
+  return typeof ownListings !== "undefined" ? ownListings.length : 0;
+}
+
 async function guardSubmission(event) {
   const form = event.target;
-  if (!form || form.id !== "form" || mkChecking) return;
+  if (!form || form.id !== "form") return;
+
+  if (mkAllowSubmit) {
+    mkAllowSubmit = false;
+    return;
+  }
 
   event.preventDefault();
   event.stopImmediatePropagation();
 
+  if (mkChecking) return;
   mkChecking = true;
+
   const submit = form.querySelector('button[type="submit"]');
   if (submit) submit.disabled = true;
 
@@ -1273,7 +1288,6 @@ async function guardSubmission(event) {
 
     const editing = !!String(form.elements.listingId?.value || "").trim();
     const photo = form.elements.photo?.files?.[0];
-
     const count = listingCount();
 
     if (!editing && mkPlan === "free" && count >= 1) {
@@ -1281,19 +1295,7 @@ async function guardSubmission(event) {
       return;
     }
 
-    if (!editing && mkPlan === "starter" && count >= 3) {
-      upgradeMessage();
-      return;
-    }
-
-    if (!editing && mkPlan === "professional" && count >= 10 &&
-        !hasFeature("multiple_product_listings")) {
-      upgradeMessage();
-      return;
-    }
-
-    if (photo && !hasFeature("more_photos_products") &&
-        count >= 1) {
+    if (photo && !hasFeature("more_photos_products") && count >= 1) {
       upgradeMessage();
       return;
     }
@@ -1307,17 +1309,13 @@ async function guardSubmission(event) {
       return;
     }
 
-    const original = form.querySelector('button[type="submit"]');
-    if (original) original.disabled = false;
+    mkAllowSubmit = true;
+    mkChecking = false;
 
-    HTMLFormElement.prototype.dispatchEvent.call(
-      form,
-      new Event("submit", {bubbles:true,cancelable:true})
-    );
+    form.requestSubmit(submit || undefined);
 
   } catch (error) {
-    if (typeof window.toast === "function")
-      window.toast(error.message || "Plan verification failed.");
+    window.toast?.(error.message || "Plan verification failed.");
   } finally {
     mkChecking = false;
     if (submit) submit.disabled = false;
