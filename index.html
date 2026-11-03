@@ -1131,5 +1131,250 @@ if (document.readyState === "loading") {
 })();
 </script>
 <!-- END MARKIVO PATCH -->
+ 
+<!-- MARKIVO CONSOLIDATED PLAN FEATURE PATCH -->
+<style>
+.mk-plan-field { margin-top:12px; }
+.mk-plan-field label { display:block;font-weight:bold;font-size:13px;margin-bottom:5px; }
+.mk-plan-field input { width:100%;padding:11px;border:1px solid #d9dfeb;border-radius:9px; }
+.mk-featured { border:2px solid #3157d5 !important; }
+.mk-featured:before { content:"★ FEATURED";display:block;color:#3157d5;font-weight:bold;font-size:12px;margin-bottom:8px; }
+.mk-locked { opacity:.7; }
+</style>
+
+<script>
+(function () {
+"use strict";
+
+const API = "https://markivo-payment-api.luit-dilip9678.workers.dev";
+
+const FEATURES = {
+  starter: [
+    "enhanced_profile",
+    "website_social_links",
+    "more_photos_products"
+  ],
+  professional: [
+    "enhanced_profile",
+    "website_social_links",
+    "more_photos_products",
+    "featured_listing",
+    "priority_search_placement",
+    "product_service_showcase",
+    "enquiry_visibility"
+  ],
+  business_premium: [
+    "enhanced_profile",
+    "website_social_links",
+    "more_photos_products",
+    "featured_listing",
+    "priority_search_placement",
+    "product_service_showcase",
+    "enquiry_visibility",
+    "top_category_placement",
+    "multiple_product_listings",
+    "promotional_opportunities",
+    "business_analytics"
+  ]
+};
+
+let mkPlan = "free";
+let mkFeatures = [];
+let mkChecking = false;
+
+function mkUser() {
+  return window.firebase && firebase.auth().currentUser;
+}
+
+async function refreshPlan() {
+  const u = mkUser();
+  if (!u || u.isAnonymous) {
+    mkPlan = "free";
+    mkFeatures = [];
+    return;
+  }
+
+  const r = await fetch(API + "/entitlements", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({
+      id_token: await u.getIdToken(),
+      user_uid: u.uid
+    })
+  });
+
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || "Plan verification failed");
+
+  mkPlan = d.active ? d.plan : "free";
+  mkFeatures = Array.isArray(d.features) ? d.features : [];
+}
+
+function hasFeature(name) {
+  return mkFeatures.includes(name);
+}
+
+function upgradeMessage() {
+  if (typeof window.toast === "function")
+    window.toast("This feature requires a higher Markivo plan.");
+  if (typeof window.go === "function") window.go("pricing");
+}
+
+function addField(form, name, label, placeholder, feature) {
+  if (form.elements[name]) return;
+
+  const wrap = document.createElement("div");
+  wrap.className = "field full mk-plan-field";
+  wrap.innerHTML =
+    '<label>' + label + '</label>' +
+    '<input name="' + name + '" placeholder="' + placeholder + '">';
+
+  const submit = form.querySelector('button[type="submit"]');
+  form.insertBefore(wrap, submit ? submit.parentElement : null);
+
+  const input = wrap.querySelector("input");
+  if (!hasFeature(feature)) {
+    input.disabled = true;
+    input.placeholder = "Upgrade plan to unlock";
+    wrap.classList.add("mk-locked");
+  }
+}
+
+function installFields() {
+  const form = document.getElementById("form");
+  if (!form || form.dataset.mkFields === "1") return;
+
+  form.dataset.mkFields = "1";
+
+  addField(form, "website", "Business website", "https://example.com", "website_social_links");
+  addField(form, "socialLink", "Social media link", "Instagram / Facebook URL", "website_social_links");
+}
+
+function listingCount() {
+  return Array.isArray(window.ownListings) ? window.ownListings.length : 0;
+}
+
+async function guardSubmission(event) {
+  const form = event.target;
+  if (!form || form.id !== "form" || mkChecking) return;
+
+  event.preventDefault();
+  event.stopImmediatePropagation();
+
+  mkChecking = true;
+  const submit = form.querySelector('button[type="submit"]');
+  if (submit) submit.disabled = true;
+
+  try {
+    await refreshPlan();
+
+    const title = String(form.elements.title?.value || "").trim();
+    if (!title) throw new Error("Please enter a listing title.");
+
+    const editing = !!String(form.elements.listingId?.value || "").trim();
+    const photo = form.elements.photo?.files?.[0];
+
+    const count = listingCount();
+
+    if (!editing && mkPlan === "free" && count >= 1) {
+      upgradeMessage();
+      return;
+    }
+
+    if (!editing && mkPlan === "starter" && count >= 3) {
+      upgradeMessage();
+      return;
+    }
+
+    if (!editing && mkPlan === "professional" && count >= 10 &&
+        !hasFeature("multiple_product_listings")) {
+      upgradeMessage();
+      return;
+    }
+
+    if (photo && !hasFeature("more_photos_products") &&
+        count >= 1) {
+      upgradeMessage();
+      return;
+    }
+
+    const website = form.elements.website;
+    const social = form.elements.socialLink;
+
+    if ((website?.value.trim() || social?.value.trim()) &&
+        !hasFeature("website_social_links")) {
+      upgradeMessage();
+      return;
+    }
+
+    const original = form.querySelector('button[type="submit"]');
+    if (original) original.disabled = false;
+
+    HTMLFormElement.prototype.dispatchEvent.call(
+      form,
+      new Event("submit", {bubbles:true,cancelable:true})
+    );
+
+  } catch (error) {
+    if (typeof window.toast === "function")
+      window.toast(error.message || "Plan verification failed.");
+  } finally {
+    mkChecking = false;
+    if (submit) submit.disabled = false;
+  }
+}
+
+function sortCards() {
+  const container = document.getElementById("listings");
+  if (!container) return;
+
+  const cards = Array.from(container.querySelectorAll(".card"));
+  cards.sort((a,b) => {
+    const af = a.dataset.featured === "true" ? 1 : 0;
+    const bf = b.dataset.featured === "true" ? 1 : 0;
+    return bf - af;
+  });
+
+  cards.forEach(card => container.appendChild(card));
+}
+
+function start() {
+  const form = document.getElementById("form");
+  if (!form) return;
+
+  installFields();
+
+  form.addEventListener("submit", guardSubmission, true);
+
+  if (window.firebase && firebase.auth) {
+    firebase.auth().onAuthStateChanged(async () => {
+      try {
+        await refreshPlan();
+        installFields();
+      } catch (e) {
+        console.error("Markivo plan refresh:", e);
+      }
+    });
+  }
+
+  const observer = new MutationObserver(() => {
+    installFields();
+    sortCards();
+  });
+
+  const directory = document.getElementById("listings");
+  if (directory) observer.observe(directory, {childList:true});
+
+  refreshPlan().catch(console.error);
+}
+
+if (document.readyState === "loading")
+  document.addEventListener("DOMContentLoaded", start);
+else start();
+
+})();
+</script>
+<!-- END MARKIVO CONSOLIDATED PLAN FEATURE PATCH -->
+ 
 </body> 
 </html>
