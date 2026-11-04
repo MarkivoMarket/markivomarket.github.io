@@ -368,19 +368,43 @@ function safe(v){
  return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 function card(x,showStatus=false,showActions=false){
- const digits=String(x.phone||"").replace(/\D/g,"");
- const wa=digits.length>=10&&digits.length<=15
- ?'<a class="light" target="_blank" rel="noopener" href="https://wa.me/'+digits+'?text='+encodeURIComponent("Hello, I am interested in "+String(x.title||"your listing"))+'">WhatsApp enquiry</a>'
- :'<span class="muted">WhatsApp number not provided</span>';
- return '<article class="card">'+
- (x.photoURL?'<img class="cardphoto" loading="lazy" src="'+safe(x.photoURL)+'" alt="Listing photo">':'')+
- '<span class="tag">'+safe(x.category)+'</span><h3>'+safe(x.title)+'</h3>'+
- '<div class="muted">📍 '+safe(x.city||"Online")+'</div>'+
- '<p class="muted">'+safe(x.description||"Contact for details.")+'</p>'+
- '<div class="cardfoot"><b>'+(x.price?"₹"+Number(x.price).toLocaleString("en-IN"):"Contact for price")+'</b>'+wa+'</div>'+
- (showStatus?'<p class="status">Status: '+safe(x.status||"pending")+'</p>':'')+
- (showActions?'<div class="cardfoot"><button class="primary smallbtn" data-edit-id="'+safe(x.id)+'">Edit</button><button class="danger smallbtn" data-delete-id="'+safe(x.id)+'">Delete</button></div>':'')+
- '</article>';
+  const digits=String(x.phone||"").replace(/\D/g,"");
+  const wa=digits.length>=10&&digits.length<=15
+    ? '<a class="light" target="_blank" rel="noopener noreferrer" href="https://wa.me/'+digits+'?text='+encodeURIComponent("Hello, I am interested in "+String(x.title||"your listing"))+'">WhatsApp enquiry</a>'
+    : '<span class="muted">WhatsApp number not provided</span>';
+
+  const validLink = value => {
+    try {
+      const url = new URL(String(value||"").trim());
+      return ["https:","http:"].includes(url.protocol) ? url.href : "";
+    } catch(e) {
+      return "";
+    }
+  };
+
+  const website=validLink(x.website);
+  const social=validLink(x.socialLink);
+  const featured=x.featured===true || x.priority===true;
+
+  const details=x.details && typeof x.details==="object"
+    ? Object.entries(x.details).map(([k,v]) =>
+        '<p class="muted"><b>'+safe(k)+':</b> '+safe(v)+'</p>'
+      ).join("")
+    : "";
+
+  return '<article class="card" data-featured="'+featured+'">'+
+    (featured?'<span class="tag">Featured</span>':'')+
+    (x.photoURL?'<img class="cardphoto" loading="lazy" src="'+safe(x.photoURL)+'" alt="Listing photo">':'')+
+    '<span class="tag">'+safe(x.category)+'</span><h3>'+safe(x.title)+'</h3>'+
+    '<div class="muted">📍 '+safe(x.city||"Online")+'</div>'+
+    '<p class="muted">'+safe(x.description||"Contact for details.")+'</p>'+
+    details+
+    '<div class="cardfoot"><b>'+(x.price?"₹"+Number(x.price).toLocaleString("en-IN"):"Contact for price")+'</b>'+wa+'</div>'+
+    (website?'<p><a class="light" target="_blank" rel="noopener noreferrer" href="'+safe(website)+'">Business Website</a></p>':'')+
+    (social?'<p><a class="light" target="_blank" rel="noopener noreferrer" href="'+safe(social)+'">Social Profile</a></p>':'')+
+    (showStatus?'<p class="status">Status: '+safe(x.status||"pending")+'</p>':'')+
+    (showActions?'<div class="cardfoot"><button class="primary smallbtn" data-edit-id="'+safe(x.id)+'">Edit</button><button class="danger smallbtn" data-delete-id="'+safe(x.id)+'">Delete</button></div>':'')+
+    '</article>';
 }
 function render(){
  const q=(document.getElementById("search").value||"").toLowerCase();
@@ -521,6 +545,8 @@ function editListing(id){
  f.elements.price.value=x.price||"";
  f.elements.phone.value=x.phone||"";
  f.elements.description.value=x.description||"";
+ if (f.elements.website) f.elements.website.value = x.website || "";
+if (f.elements.socialLink) f.elements.socialLink.value = x.socialLink || "";
  f.elements.photo.value="";
  document.getElementById("formTitle").textContent="Edit listing";
  document.getElementById("modal").classList.add("show");
@@ -634,7 +660,19 @@ document.getElementById("form").addEventListener("submit",async e=>{
  if(!title){toast("Please enter a listing title.");return}
  if(file&&(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>5*1024*1024)){
   toast("Choose a JPG, PNG or WebP photo up to 5 MB.");return;
- }
+ } 
+ const websiteValue = String(form.elements.website?.value || "").trim();
+const socialValue = String(form.elements.socialLink?.value || "").trim();
+
+if (websiteValue && !safeUrl(websiteValue)) {
+  toast("Enter a valid website URL.");
+  return;
+}
+
+if (socialValue && !safeUrl(socialValue)) {
+  toast("Enter a valid social profile URL.");
+  return;
+}
  try{
   if(!user)throw Error("Please wait for sign-in and try again.");
   const existing=listingId?ownListings.find(x=>x.id===listingId):null;
@@ -649,8 +687,8 @@ document.getElementById("form").addEventListener("submit",async e=>{
    phone:String(f.get("phone")||"").trim(),
    description:String(f.get("description")||"").trim(),
    details:collectCategoryDetails(form),
-   website: String(f.get("website") || "").trim(),
-socialLink: String(f.get("socialLink") || "").trim(),
+   website: safeUrl(f.get("website")),
+socialLink: safeUrl(f.get("socialLink")),
    photoURL,photoPath:""
   };
   if(listingId){
@@ -1227,19 +1265,31 @@ function addField(form, name, label, placeholder, feature) {
 
   const wrap = document.createElement("div");
   wrap.className = "field full mk-plan-field";
+  wrap.dataset.feature = feature;
+
   wrap.innerHTML =
     '<label>' + label + '</label>' +
-    '<input name="' + name + '" placeholder="' + placeholder + '">';
+    '<input name="' + name + '" type="url" inputmode="url" placeholder="' + placeholder + '">';
 
   const submit = form.querySelector('button[type="submit"]');
   form.insertBefore(wrap, submit ? submit.parentElement : null);
+}
 
-  const input = wrap.querySelector("input");
-  if (!hasFeature(feature)) {
-    input.disabled = true;
-    input.placeholder = "Upgrade plan to unlock";
-    wrap.classList.add("mk-locked");
-  }
+function updatePlanFields() {
+  const form = document.getElementById("form");
+  if (!form) return;
+
+  form.querySelectorAll(".mk-plan-field").forEach(wrap => {
+    const input = wrap.querySelector("input");
+    const unlocked = hasFeature(wrap.dataset.feature);
+
+    input.disabled = !unlocked;
+    input.placeholder = unlocked
+      ? (input.name === "website" ? "https://example.com" : "https://instagram.com/yourpage")
+      : "Upgrade plan to unlock";
+
+    wrap.classList.toggle("mk-locked", !unlocked);
+  });
 }
 
 function installFields() {
@@ -1247,13 +1297,9 @@ function installFields() {
   if (!form || form.dataset.mkFields === "1") return;
 
   form.dataset.mkFields = "1";
-
   addField(form, "website", "Business website", "https://example.com", "website_social_links");
-  addField(form, "socialLink", "Social media link", "Instagram / Facebook URL", "website_social_links");
-}
-
-function listingCount() {
-  return Array.isArray(window.ownListings) ? window.ownListings.length : 0;
+  addField(form, "socialLink", "Social media link", "https://instagram.com/yourpage", "website_social_links");
+  updatePlanFields();
 }
 
 let mkAllowSubmit = false;
@@ -1261,7 +1307,6 @@ let mkAllowSubmit = false;
 function listingCount() {
   return typeof ownListings !== "undefined" ? ownListings.length : 0;
 }
-
 async function guardSubmission(event) {
   const form = event.target;
   if (!form || form.id !== "form") return;
@@ -1349,6 +1394,7 @@ function start() {
       try {
         await refreshPlan();
         installFields();
+       updatePlanFields();
       } catch (e) {
         console.error("Markivo plan refresh:", e);
       }
@@ -1363,7 +1409,7 @@ function start() {
   const directory = document.getElementById("listings");
   if (directory) observer.observe(directory, {childList:true});
 
-  refreshPlan().catch(console.error);
+  refreshPlan().then(updatePlanFields).catch(console.error);
 }
 
 if (document.readyState === "loading")
