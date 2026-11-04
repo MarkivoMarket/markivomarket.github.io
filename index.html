@@ -350,7 +350,7 @@ async function checkMarkivoFeature(feature) {
 
     if (!res.ok) throw new Error(data.error || "Permission check failed");
 
-    if (!Array.isArray(data.features) || !data.features.includes(feature)) {
+    if (!Array.isArray(data.features) || !data.features.includes(feature)) { 
       toast("Upgrade your Markivo plan to use this feature.");
       go("pricing");
       return false;
@@ -650,7 +650,18 @@ async function compressImage(file){
   };
   reader.readAsDataURL(file);
  });
-}
+} 
+ function safeUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  try {
+    const url = new URL(raw);
+    return ["http:", "https:"].includes(url.protocol) ? url.href : "";
+  } catch (e) {
+    return "";
+  }
+ }
 document.getElementById("form").addEventListener("submit",async e=>{
  e.preventDefault();
  const form=e.target,f=new FormData(form);
